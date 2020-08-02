@@ -87,14 +87,14 @@ def create_segment(schedule_type, name, description, start, end):
         exit(1)
 
 
-def create_session(name, description, schedule_id):
+def create_session(name, description, priority, schedule_id=''):
     payload = {
         'roundtable[name]': name,
         'roundtable[description]': description,
         'roundtable[can_sit]': 'anyone_',
         'roundtable[can_watch]': 'anyone',
         'roundtable[max_participants]': '20',
-        'roundtable[priority]': '100',
+        'roundtable[priority]': str(priority),
         'roundtable[schedule_id]': str(schedule_id),
         'roundtable[record_status]': '0',
         'roundtable[picture]': '',
@@ -113,27 +113,21 @@ def create_session(name, description, schedule_id):
 def main():
     login()
 
-    csv_schedule = []
-    with open(sys.argv[1]) as csvfile:
+    csv_type = sys.argv[1]
+    if csv_type not in ['sessions', 'schedule']:
+        raise ValueError(f'Unknown CSV type: {csv_type}')
+    with open(sys.argv[2]) as csvfile:
         reader = csv.reader(csvfile)
         next(reader)
         for row in reader:
-            start_str, end_str, name, description, schedule_type = row[:5]
-            start = datetime.strptime(start_str, CSV_TIME_FORMAT)
-            end = datetime.strptime(end_str, CSV_TIME_FORMAT)
+            if csv_type == 'schedule':
+                start_str, end_str, name, description, schedule_type = row[:5]
+                start = datetime.strptime(start_str, CSV_TIME_FORMAT)
+                end = datetime.strptime(end_str, CSV_TIME_FORMAT)
+                create_segment(schedule_type, name, description, start, end)
 
-            if schedule_type.lower() == 'expo':
-                continue
-
-            csv_schedule.append((start, end, name, description, schedule_type))
-
-    for start, end, name, description, schedule_type in csv_schedule:
-        create_segment(schedule_type, name, description, start, end)
-
-    segments = get_segments()
-    for start, end, name, description, schedule_type in csv_schedule:
-        if schedule_type.lower() == 'sessions':
-            create_session(name, description, segments[name])
-
+            elif csv_type == 'sessions':
+                name, description, priority = row[:3]
+                create_session(name, description, priority)
 
 main()
